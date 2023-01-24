@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
         pip install gunicorn
         
 
-#RUN python manage.py collectstatic
+RUN python manage.py collectstatic
 
 RUN chmod +x gunicorn.sh
 EXPOSE 8000
