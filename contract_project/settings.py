@@ -166,10 +166,6 @@ CORS_ALLOWED_ORIGINS = [
 
 
 AUTH_USER_MODEL = 'studio45_code.User'
-# SEND_GRID_API_key = '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'
-# SEND_GRID_FROM_EMAIL = "pythondev713@gmail.com"
-
-
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
