@@ -8,4 +8,5 @@ sendgrid==6.9.7
 pandas==1.5.3
 requests==2.28.2
 Pillow==9.4.0
+whitenoise==6.3.0
 
