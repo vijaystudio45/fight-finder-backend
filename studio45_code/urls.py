@@ -10,7 +10,6 @@ AddBlogViewSet,
 contactView,
 UserListView,
 UserBlocUnblockkView,
-# EventViewSet,
 VerifyEmail,
 AllEventViewSet,
 pagesViewSet,
@@ -19,9 +18,18 @@ SeminarViewSet,
 allModelDataViewSet,
 OnlyUserDataView,
 UpcomingEventsView,
-UploadCsvFileView
-# PastEventsView
-
+UploadCsvFileView,
+OnGoingEventsView,
+PastEventsView,
+PageImageView,
+IsApprovedDataViewSet,
+events_map_location,
+generate_haiku,
+UserDetailView,
+TagViewSet,
+UserbackgroundView,
+allEventsDataListAPIView,
+PersonalViewSet
 )
 
 from rest_framework import routers
@@ -35,7 +43,15 @@ router.register(r'pages', pagesViewSet)
 router.register(r'all_Model_data', allModelDataViewSet)
 router.register(r'user_events', OnlyUserDataView)
 router.register(r'upcoming_events', UpcomingEventsView)
-router.register(r'past_events', UpcomingEventsView)
+router.register(r'past_events', PastEventsView)
+router.register(r'ongoing_events', OnGoingEventsView)
+router.register(r'test_image', PageImageView)
+router.register(r'approved_events', IsApprovedDataViewSet)
+router.register(r'events_map_location', events_map_location)
+router.register(r'Tag', TagViewSet)
+router.register(r'userbackground_image', UserbackgroundView)
+router.register(r'userbackground_image', UserbackgroundView)
+router.register(r'personal', PersonalViewSet)
 
 
 urlpatterns = [
@@ -48,20 +64,13 @@ urlpatterns = [
     path('contact/', contactView.as_view(), name='contact'),
     path('get-user/', UserListView.as_view(), name='get_user'),
     path('UserBlockUnblock/<int:pk>/', UserBlocUnblockkView.as_view(), name='UserBlockUnblock'),
-    # path('verify-email/<str:token>/<str:uid>/', VerifyEmail.as_view(), name='verify_email'),
     path('verify-email/<str:uid>/', VerifyEmail.as_view(), name='verify_email'),
     path('user_contact/', views.UserContactView.as_view(), name='user_contact'),
-    # path('upcoming_events/', views.UpcomingEventsView.as_view(), name='upcoming_events'),
     path('upcoming_events/<int:pk>/', views.UpcomingEventsViewDetail.as_view(), name='upcoming_events_details'),
-    # path('past_events/', views.PastEventsView.as_view(), name='past_events'),
-    # path('userdata', views.userDataView.as_view(),name='userdata'),
-    # path('upcoming_events_details/', views.UpcomingEventsDetailsView.as_view(), name='upcoming_events_details'),
-    path('upload_csv/', UploadCsvFileView.as_view(), name='upload-file')
-    
- 
-
-
-    
+    path('upload_csv/', UploadCsvFileView.as_view(), name='upload-file'),
+    path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('generate_poem/<str:word>/', generate_haiku, name='generate_poem'),
+    path('allEventsData/', allEventsDataListAPIView.as_view()),
 
 ]
 

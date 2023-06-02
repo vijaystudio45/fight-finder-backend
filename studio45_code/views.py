@@ -19,17 +19,20 @@ PagesSerializers,
 SchoolGymSerializers,
 SeminarSerializers,
 Get_details_detailsSerializers,
-csvData_detailsSerializers
+PageImageSerializers,
+newformdetails_detailsSerializers,
+TagSerializers,
+UserbackgroundSerializers,
+upcomingDistance_detailsSerializers,
+UserSerializers
+
 )
-from .models import User,Add_Blog,Contact,Events,all_events_details,Pages,SchoolGym,SeminarInformation,Industry
+from .models import User,Add_Blog,Contact,Events,all_events_details,Pages,SchoolGym,SeminarInformation,PagesImage,Tag,Userbackgroundimage,Personal
 from rest_framework.generics import GenericAPIView
 from django.core.cache import cache
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
-from rest_framework import permissions
-from rest_framework import views
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 import uuid
 from rest_framework import viewsets
@@ -37,28 +40,39 @@ from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings 
 from django.db.models import Q
-from sendgrid.helpers.mail import Mail, Email, To, Content
 from .helper.helper import StringEncoder
 from contract_project.settings import FRONTEND_SITE_URL,BACKEND_SITE_URL
-from rest_framework.generics import  RetrieveUpdateAPIView
-from rest_framework import generics
 import os
-from datetime import datetime
 import json  
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter,OrderingFilter
 import datetime as dt
 from django.http import Http404
 import datetime
 from datetime import datetime
-from datetime import datetime, timedelta
-import datetime
 import io, csv, pandas as pd
-from rest_framework.parsers import FileUploadParser
 import requests
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-#test
+from urllib.request import urlopen
+from django_filters.rest_framework import DjangoFilterBackend
+from datetime import datetime, timedelta
+from rest_framework.generics import UpdateAPIView
+import random
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
+from django.contrib.gis.db.models.functions import GeometryDistance
+from django.contrib.gis.measure import Distance
+import pytz
+import urllib.request
+from rest_framework import generics
+
+
+
+
+
+
+
+
 class RegistrationView(APIView):
     serializer_class = RegistrationSerializer
 
@@ -124,10 +138,10 @@ class RegistrationView(APIView):
                                                         </h1>\
                                                         </div>\
                                                         <div class="welcome-paragraph">\
-                                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">Welcome to Translator Service</div>\
-                                                        <div style="padding:10px 0px; font-size: 16px; color: #384860;">Please click the link below to verify your account <br />\
+                                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">Welcome to Martial Nexus !</div>\
+                                                        <div style="padding:10px 0px; font-size: 16px; color: #384860;">Please click the button below to verify your account <br />\
                                                         </div>\
-                                                        <div style="padding: 20px 0px; font-size: 16px; color: #384860;"> Sincerely, <br />The Translator service Team </div>\
+                                                        <div style="padding: 20px 0px; font-size: 16px; color: #384860;"> Sincerely, <br />The Martial Nexus ! Team </div>\
                                                         </div>\
                                                         <div style="padding-top:40px; cursor: pointer !important;" class="confirm-email-button">\
                                                         <a href='+FRONTEND_SITE_URL+'/verify-email/' +decodeId+ ' style="cursor: pointer;">\
@@ -135,11 +149,11 @@ class RegistrationView(APIView):
                                                         </a>\
                                                         </div>\
                                                         <div style="padding: 50px 0px;" class="email-bottom-para">\
-                                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">This email was sent by  Translator Service. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from  Translator Service? <a href="#">\
+                                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">This email was sent by  Martial Nexus !. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from  Martial Nexus ? <a href="#">\
                                                             <span style="text-decoration:underline;"></span>\
                                                             </a>\
                                                         </div>\
-                                                        <div style="font-size: 16px;color: #384860;"> © 2023  Translator Service</div>\
+                                                        <div style="font-size: 16px;color: #384860;"> © 2023  Martial Nexus !</div>\
                                                         </div>\
                                                     </div>\
                                                     </td>\
@@ -170,16 +184,16 @@ class VerifyEmail(APIView):
         uid = self.kwargs.get(self.lookup_url_kwarg2)
         encoded_id = int(StringEncoder.decode(self, uid))
         user_data = User.objects.filter(id=encoded_id, email_verified=False)
-        print('user_data',user_data)
         if user_data:
             user_data.update(email_verified=True)
             context = {'message': 'Your email have been confirmed', 'status': status.HTTP_200_OK, 'error': False}
             return Response(context, status=status.HTTP_201_CREATED)
-        context = {
-            'message': "Something went wrong!",
-            'error': True
-        }
-        return Response(context, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            context = {
+                'message': "Something went wrong!",
+                'error': True
+            }
+            return Response(context, status=status.HTTP_400_BAD_REQUEST)
 
 
 def get_tokens_for_user(user):
@@ -250,6 +264,7 @@ class LoginView(GenericAPIView):
             'id': user.id,
             'role': user.role,
             'username': user.username,
+            'Social_media_links': user.Social_media_links,
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
@@ -260,11 +275,10 @@ class LoginView(GenericAPIView):
             'created_at': user.created_at,
             'age': user.age,
             'weight': user.weight,
-            'martial_art_style': user.martial_art_style,
             'competition_level': user.competition_level,
             'zip_code': user.zip_code,
             'country': user.country,
-            'profile_image_update': "http://122.160.74.251:8014"+user.profile_image_update.url if user.profile_image_update else '',
+            'profile_image_update': "http://43.205.65.56:8000"+user.profile_image_update.url if user.profile_image_update else '',
             
         }
         return response
@@ -299,7 +313,7 @@ class PasswordChange(APIView):
 
 class ForgetPassword(APIView):
     serializer_class = SendForgotEmailSerializer
-    
+
     def post(self, request):
         protocol = request.scheme
         domain = FRONTEND_SITE_URL
@@ -312,8 +326,10 @@ class ForgetPassword(APIView):
             if not user:
                 user = User.objects.filter(username=email).first()
                 return Response({'message': 'Email does not exists in database'}, status=status.HTTP_400_BAD_REQUEST)
+            if  user and not user.email_verified:
+                return Response({'message': 'Please confirm your email to access your account'}, status=status.HTTP_400_BAD_REQUEST)
             token = str(uuid.uuid4())
-            token_expire_time = datetime.datetime.utcnow() + timedelta(minutes=3)
+            token_expire_time = datetime.utcnow() + timedelta(minutes=3)
             user.token_expire_time = token_expire_time
             user.forget_password_token = token
             user.save()
@@ -337,7 +353,7 @@ class ForgetPassword(APIView):
                                     <td style="width: 100%; margin: 36px 0 0;">\
                                     <div style="padding: 34px 44px; border-radius: 8px !important; background: #fff; border: 1px solid #dddddd5e; margin-bottom: 50px; margin-top: 50px;">\
                                         <div class="email-logo">\
-                                        <img style="width: 165px;" src="https://webimages.mongodb.com/_com_assets/cms/kuzt9r42or1fxvlq2-Meta_Generic.png" />\
+                                        <img style="width: 165px;" src="http://122.160.74.251:3004/MN big.png" />\
                                         </div>\
                                         <a href="#"></a>\
                                         <div class="welcome-text">\
@@ -345,10 +361,10 @@ class ForgetPassword(APIView):
                                         </h1>\
                                         </div>\
                                         <div class="welcome-paragraph">\
-                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">Welcome to Fight Finder!</div>\
-                                        <div style="padding:10px 0px; font-size: 16px; color: #384860;">Please click the link below to Reset Password. <br />\
+                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">Welcome to Martial Nexus !</div>\
+                                        <div style="padding:10px 0px; font-size: 16px; color: #384860;">Please click the button below to Reset Password. <br />\
                                         </div>\
-                                        <div style="padding: 20px 0px; font-size: 16px; color: #384860;"> Sincerely, <br />The Fight Finder Team </div>\
+                                        <div style="padding: 20px 0px; font-size: 16px; color: #384860;"> Sincerely, <br />The Martial Nexus  Team </div>\
                                         </div>\
                                         <div style="padding-top:40px; cursor: pointer !important;" class="confirm-email-button">\
                                         <a href="'+restUrl+'" style="cursor: pointer;">\
@@ -356,11 +372,11 @@ class ForgetPassword(APIView):
                                         </a>\
                                         </div>\
                                         <div style="padding: 50px 0px;" class="email-bottom-para">\
-                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">This email was sent by Fight Finder. If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Fight Finder? <a href="#">\
+                                        <div style="padding: 20px 0px; font-size:16px; color: #384860;">This email was sent by Martial Nexus . If you&#x27;d rather not receive this kind of email, Don’t want any more emails from Martial Nexus ? <a href="#">\
                                             <span style="text-decoration:underline;"></span>\
                                             </a>\
                                         </div>\
-                                        <div style="font-size: 16px;color: #384860;"> © 2023 Fight Finder</div>\
+                                        <div style="font-size: 16px;color: #384860;"> © 2023 Martial Nexus </div>\
                                         </div>\
                                     </div>\
                                     </td>\
@@ -372,7 +388,7 @@ class ForgetPassword(APIView):
                         </html>'
             try:
                 send_mail(subject,message, email_from,[email], html_message=htmlMessage, fail_silently=False,)
-                return Response({'message': 'Email Send successfully, Please check your email'},status=status.HTTP_200_OK)      
+                return Response({'message': 'Email Send Successfully, Please check your email'},status=status.HTTP_200_OK)      
             except Exception as e:
                 pass
         else:
@@ -422,53 +438,39 @@ class ResetPassword(APIView):
         user_data.forget_password_token = None
         user_data.save()
         if user_data != 0:
-            return Response({'message': 'Your Password updated successfully'}, status=status.HTTP_200_OK)
+            return Response({'message': 'Your Password updated Successfully'}, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'There is an error to updating the data'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
-class UpdateUserProfile(APIView):
+
+
+
+class UpdateUserProfile(UpdateAPIView):
     serializer_class = UpdateUserProfileSerializer
+    queryset = User.objects.all()
 
 
-    def post(self, request, format=None):
-        try:
-            # exist then update
-            getUser = User.objects.get(id=request.user.id)
-            print(request.data)
-            serializer = UpdateUserProfileSerializer(getUser, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                token = get_tokens_for_user(getUser)
-                Response_data = ( {
-                    
-                    'first_name': getUser.first_name,
-                    'last_name': getUser.last_name,
-                    'mobile_number': getUser.mobile_number,
-                    'id': getUser.id,
-                    'email': getUser.email,
-                    'token': token['access'],
-                    'refresh': token['refresh'],
-                    'about_me': getUser.about_me,
-                    'gender': getUser.gender,
-                    'role': getUser.role,
-                    'username': getUser.username,
-                    'age': getUser.age,
-                    'weight': getUser.weight,
-                    'martial_art_style': getUser.martial_art_style,
-                    'competition_level': getUser.competition_level,
-                    'zip_code': getUser.zip_code,
-                    'country': getUser.country,
-                    'profile_image_update': "http://122.160.74.251:8014"+getUser.profile_image_update.url,
-                    }
-                )
-                return Response({'data':Response_data,'message':'Profile Updated  successful'})
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_object(self):
+        return self.request.user
         
-        except Exception as e:   
-                return Response({'message': 'Profile is not updated, Please try again'}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+    def perform_update(self, serializer):
+        getUser = User.objects.get(id=self.request.user.id)
+        profile_image = self.request.data.get('profile_image_update', None)
+        if profile_image is not None:
+            serializer.validated_data['profile_image_update'] = profile_image
+        serializer.save()
+        token = get_tokens_for_user(getUser)
+        data = {
+            'user': serializer.data,
+            'token': token
+        }
+        return Response(data, status=status.HTTP_200_OK)
+        # return Response(serializer.data, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
@@ -504,7 +506,7 @@ class AddBlogViewSet(viewsets.ModelViewSet):
               instance.save()
         self.perform_update(serializer)
         context = {
-            'message': 'Blog Updated Succesfully',
+            'message': 'Blog Updated Successfully',
             'status': status.HTTP_200_OK,
             'errors': serializer.errors,
             'data': serializer.data,
@@ -551,7 +553,7 @@ class contactView(APIView):
                         phone = data['phone'],
                         address=data['address']
                     )
-                    return Response({'message': 'contact updated successfully'}, status=status.HTTP_200_OK)
+                    return Response({'message': 'contact updated Successfully'}, status=status.HTTP_200_OK)
                    
                 else:
                     data = Contact.objects.create(
@@ -562,7 +564,7 @@ class contactView(APIView):
                     )
                     data.save()        
                 
-                    return Response({'message': 'contact added successfully'}, status=status.HTTP_200_OK)
+                    return Response({'message': 'contact added Successfully'}, status=status.HTTP_200_OK)
             else:
                 return Response({'message': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except KeyError as e:
@@ -588,9 +590,7 @@ class UserBlocUnblockkView(APIView):
         serializer = UserblockUnblock(data=request.data)
         if serializer.is_valid():
             data1 = serializer.validated_data['is_block']
-            print(data1)
-            data = User.objects.filter(id=pk).update(is_block=serializer.data['is_block'])
-            print(data)  
+            data = User.objects.filter(id=pk).update(is_block=serializer.data['is_block'])  
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -612,7 +612,6 @@ class UserContactView(APIView):
                 email = data.get('email')
                 message = data.get('message')
                 phone_number = data.get('phone_number')
-                # recipient_list = ['davinder.studio45@gmail.com']
                 recipient_list = [admin_email.email]
                 email_from = email
                 messages =f'<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\
@@ -631,10 +630,10 @@ class UserContactView(APIView):
                                             <table width="100%">\
                                                 <tr>\
                                                     <td width="50%" style="padding-left:40px;">\
-                                                        <img src="http://122.160.74.251:3004/image%205.png" alt="Fight Finder" width="100" height="70" style="display: block;" />\
+                                                        <img src="http://122.160.74.251:3004/MN.png" alt="Martial Nexus " width="100" height="70" style="display: block;" />\
                                                     </td>\
                                                     <td align="right" style="padding-right:40px;">\
-                                                        <small style="font-size:12px; background: #08c; color:#FFF; padding:10px; border-radius: 5px;"><a href="http://www.Fight Finder.com" target="_blank" style="color:#FFF; text-decoration: none;">Shop at Fight Finder</a></small>\
+                                                        <small style="font-size:12px; background: #08c; color:#FFF; padding:10px; border-radius: 5px;"><a href="http://www.Martial Nexus .com" target="_blank" style="color:#FFF; text-decoration: none;">Shop at Martial Nexus </a></small>\
                                                     </td>\
                                                 </tr>\
                                             </table>\
@@ -672,7 +671,7 @@ class UserContactView(APIView):
                                                         </table>\
                                                         <br /><br /><br />\
                                                         Regards,<br />\
-                                                        <b>Fight Finder</b>\
+                                                        <b>Martial Nexus </b>\
                                                     </td>\
                                                 </tr>\
                                             </table>\
@@ -682,7 +681,7 @@ class UserContactView(APIView):
                                         <td bgcolor="#08c" style="padding: 20px 30px 20px 30px;">\
                                             <table border="0" cellpadding="0" cellspacing="0" width="100%">\
                                                 <tr>\
-                                                    <td style="color: #ffffff; font-family: Arial, sans-serif; font-size: 14px;" width="75%"> &copy; Copyright, All Right Reserved | <a href="http://Fight Finder.com" style="color: #ffffff; font-weight: bold; text-decoration: none;">Fight Finder</a> </td>\
+                                                    <td style="color: #ffffff; font-family: Arial, sans-serif; font-size: 14px;" width="75%"> &copy; Copyright, All Right Reserved | <a href="http://Martial Nexus .com" style="color: #ffffff; font-weight: bold; text-decoration: none;">Martial Nexus </a> </td>\
                                                 </tr>\
                                             </table>\
                                         </td>\
@@ -728,13 +727,6 @@ class UpcomingEventsViewDetail(APIView):
 
 
 
-    
- 
-
-
-
-
-
 
 class pagesViewSet(viewsets.ModelViewSet): 
     serializer_class = PagesSerializers
@@ -751,10 +743,10 @@ class pagesViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             if Pages.objects.filter(title=get_title).exists():
                 Pages.objects.filter(title=get_title).update(contant=get_pages,title=get_title,user=user_id)
-                return Response({'message': 'Pages updated successfully'}, status=status.HTTP_200_OK)  
+                return Response({'message': 'Pages updated Successfully'}, status=status.HTTP_200_OK)  
             else:
                 self.perform_create(serializer)
-                return Response({'message': 'Pages added successfully'}, status=status.HTTP_200_OK)  
+                return Response({'message': 'Pages added Successfully'}, status=status.HTTP_200_OK)  
             
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -776,9 +768,9 @@ class pagesViewSet(viewsets.ModelViewSet):
 
 
 
-def str_to_time(value):
-    data= datetime.strptime(value.replace("T"," ").replace("Z",""), '%Y-%m-%d %H:%M:%S.%f')
-    return data.strftime("%H:%M:%S")
+# def str_to_time(value):
+#     data= datetime.strptime(value.replace("T"," ").replace("Z",""), '%Y-%m-%d %H:%M:%S.%f')
+#     return data.strftime("%H:%M:%S")
 
 
 
@@ -796,11 +788,14 @@ class AllEventViewSet(viewsets.ModelViewSet):
             serializer = self.serializer_class(data=data)
             serializer1 = self.serializer_class1(data=data)
             if serializer.is_valid() and serializer1.is_valid():
-                data = serializer.save(time = str_to_time(data.get('time')),image=image_obj[index])
+                if image_obj and image_obj[index]:
+                    data = serializer.save(image=image_obj[index])
+                else:
+                   data = serializer.save(image=None)
                 serializer1.save(events=data) 
             else:
               return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)      
-        return Response({'data':serializer.data,'message':'Events added successful'})
+        return Response({'data':serializer.data,'message':'Events added Successfully'})
 
 
     def update(self, request, *args, **kwargs):
@@ -810,7 +805,7 @@ class AllEventViewSet(viewsets.ModelViewSet):
             instance, data=request.data, partial=True)
         if serializer.is_valid():
             self.perform_update(serializer)
-            return Response({'data':serializer.data,'message':'Events updated successful'})
+            return Response({'data':serializer.data,'message':'Events updated Successfully'})
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -846,11 +841,14 @@ class SchoolGymViewSet(viewsets.ModelViewSet):
             serializer = self.serializer_class(data=data)
             serializer1 = self.serializer_class1(data=data)
             if serializer.is_valid() and serializer1.is_valid():
-                data = serializer.save(image=image_obj[index]) 
+                if image_obj and image_obj[index]:
+                    data = serializer.save(image=image_obj[index]) 
+                else:
+                    data = serializer.save(image=None) 
                 serializer1.save(schoolgym=data) 
             else:
               return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)       
-        return Response({'data':serializer.data,'message':'School added successful'})    
+        return Response({'data':serializer.data,'message':'School added Successfully'})    
 
 
     def update(self, request, *args, **kwargs):
@@ -860,7 +858,7 @@ class SchoolGymViewSet(viewsets.ModelViewSet):
             instance, data=request.data, partial=True)
         if serializer.is_valid():
             self.perform_update(serializer)
-            return Response({'data':serializer.data,'message':'School updated successful'})
+            return Response({'data':serializer.data,'message':'School updated Successfully'})
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)    
 
@@ -889,18 +887,21 @@ class SeminarViewSet(viewsets.ModelViewSet):
    
 
     def create(self, request, *args, **kwargs):
-        seminar_obj =  request.data.getlist('seminar')
+        seminar_obj =  request.data.getlist('seminar')  
         image_obj =  request.FILES.getlist('image')
         for index,i in enumerate(seminar_obj):
             data = json.loads(i)
             serializer = self.serializer_class(data=data)
             serializer1 = self.serializer_class1(data=data)
             if serializer.is_valid() and serializer1.is_valid():
-                data = serializer.save(image=image_obj[index]) 
+                if image_obj and  image_obj[index]:
+                    data = serializer.save(image=image_obj[index]) 
+                else:
+                    data = serializer.save(image=None) 
                 serializer1.save(seminarnformation=data) 
             else:
               return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)       
-        return Response({'data':serializer.data,'message':'Seminar added successful'})
+        return Response({'data':serializer.data,'message':'Seminar added Successfully'})
 
 
     def update(self, request, *args, **kwargs):
@@ -910,7 +911,7 @@ class SeminarViewSet(viewsets.ModelViewSet):
             instance, data=request.data, partial=True)
         if serializer.is_valid():
             self.perform_update(serializer)
-            return Response({'data':serializer.data,'message':'Seminar Updated successful'})
+            return Response({'data':serializer.data,'message':'Seminar Updated Successfully'})
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
          
@@ -926,14 +927,82 @@ class SeminarViewSet(viewsets.ModelViewSet):
         return Response(context)      
                         
         
+
+class PersonalViewSet(viewsets.ModelViewSet):
+    queryset = Personal.objects.all()
+    serializer_class1 = all_events_detailsSerializers
+    queryset = SeminarInformation.objects.all() 
+
+
+    def create(self, request, *args, **kwargs):
+        seminar_obj = request.data.get('Personal')
+        image_obj = request.FILES.get('image')
+
+        data = json.loads(seminar_obj)
+        serializer = self.serializer_class(data=data)
+        serializer1 = self.serializer_class1(data=data)
+
+        if serializer.is_valid() and serializer1.is_valid():
+            if image_obj:
+                data = serializer.save(image=image_obj)  # Save the image_obj directly
+            else:
+                data = serializer.save(image=None)
+
+            serializer1.save(seminarnformation=data)
+            return Response({'data': serializer.data, 'message': 'Personal added Successfully'})
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)     
+        
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response({'data':serializer.data,'message':'Personal Updated Successfully'})
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+         
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        context = {
+            'message': 'Personal Deleted Successfully',
+            'status': status.HTTP_204_NO_CONTENT,
+            'errors': False,
+        }
+        return Response(context)
+            
+
+
+
             
 
 
 class allModelDataViewSet(viewsets.ModelViewSet):
+    serializer_class = Get_details_detailsSerializers
+    queryset = all_events_details.objects.all().order_by('-id') 
+
+    def list(self, request):
+        data = all_events_details.objects.all().order_by('-id') 
+        serializer = Get_details_detailsSerializers(data, many=True,context={'request':request})
+        return Response(serializer.data)
+
+
+
+class IsApprovedDataViewSet(viewsets.ModelViewSet):
     serializer_class = all_events_detailsSerializers
     queryset = all_events_details.objects.all().order_by('-id') 
 
 
+    def list(self, request):
+        data = all_events_details.objects.filter(Q (seminarnformation__is_approved = True)| Q (events__is_approved = True) |Q (schoolgym__is_approved = True))
+        serializer = Get_details_detailsSerializers(data, many=True,context={'request':request})
+        return Response(serializer.data)
+    
 
 
 
@@ -944,25 +1013,202 @@ class OnlyUserDataView(viewsets.ModelViewSet):
 
 
     def list(self, request):
-        print(request.user.id)
         data = all_events_details.objects.filter(Q (user=request.user.id)& Q(user__role = 1))
-        serializer = Get_details_detailsSerializers(data, many=True)
+        serializer = Get_details_detailsSerializers(data, many=True,context={'request':request})
         return Response(serializer.data) 
  
+
+
+
+
+
+class allEventsDataListAPIView(generics.ListAPIView):
+    serializer_class = upcomingDistance_detailsSerializers
+    queryset = all_events_details.objects.all().select_related('events', 'seminarnformation', 'schoolgym').prefetch_related('events__tags', 'seminarnformation__tags', 'schoolgym__tags').order_by('-created_at')
+    filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
+    distance_filter_field = 'events__point'
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
+    filterset_fields = ['type']
+    search_fields = [
+        'events__title', 'events__address', 'events__country',
+        'seminarnformation__title', 'seminarnformation__address', 'seminarnformation__country',
+        'schoolgym__title', 'events__martial_art_style', 'seminarnformation__martial_art_style',
+        'schoolgym__martial_art_style', 'schoolgym__address', 'events__tags__tag_name',
+        'schoolgym__country', 'seminarnformation__tags__tag_name', 'schoolgym__tags__tag_name',
+    ]
+
+    def list(self, request, format=None):
+        judo = request.GET.get('Judo', None)
+        online_only = request.GET.get('online_only', None)
+        q_judo = Q()
+        if judo:
+            q_judo = Q(
+                events__martial_art_style=judo,
+                seminarnformation__martial_art_style=judo,
+                schoolgym__martial_art_style=judo
+            )
+        q_online_only = Q()
+        if online_only:
+            q_online_only = Q(
+                events__online_only=online_only,
+                seminarnformation__online_only=online_only,
+                schoolgym__online_only=online_only
+            )
+        
+        today = dt.datetime.today()
+        upcoming_events = self.filter_queryset(self.get_queryset()).filter(
+            (
+                Q(events__start_date__gt=today, events__is_approved=True) |
+                Q(seminarnformation__start_date__gt=today, seminarnformation__is_approved=True) |
+                Q(schoolgym__created_at__lte=today, schoolgym__is_approved=True)
+            ) & q_judo & q_online_only
+        )
+        
+        lat_obj = float(request.GET.get("lat"))
+        lng_obj = float(request.GET.get("lng"))
+
+        serializer = self.get_serializer(upcoming_events, many=True, context={'request': request, 'lat': lat_obj, 'lng': lng_obj})
+        return Response(serializer.data)
+
+
+class events_map_location(viewsets.ModelViewSet):
+    serializer_class = newformdetails_detailsSerializers
+    queryset = all_events_details.objects.all().order_by('-created_at')
+
+    # serializer_class = upcomingEvents_detailsSerializers
+    # queryset = all_events_details.objects.all().order_by('-id') 
+    filter_backends = [SearchFilter,OrderingFilter,DjangoFilterBackend]
+    distance_filter_field = 'events__point'
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
+    filterset_fields = ['type']
+    search_fields = ['events__title','seminarnformation__title','schoolgym__title','events__martial_art_style','seminarnformation__martial_art_style','schoolgym__martial_art_style','events__tags__tag_name','seminarnformation__tags__tag_name','schoolgym__tags__tag_name']
+
+    def get_queryset(self):
+        today = dt.datetime.today()
+        queryset = all_events_details.objects.filter(
+            Q(events__end_date__gte=today) & Q(events__is_approved=True) |
+            Q(seminarnformation__end_date__gte=today) & Q(seminarnformation__is_approved=True)
+        )
+        return queryset
+
+    def list(self, request, format=None):
+
+        try:
+            lat_obj = float(request.GET.get("lat"))  
+            lng_obj = float(request.GET.get("lng"))  
+            distance_obj = float(request.GET.get("distance"))
+            unit = request.GET.get("distance_type")  # default to kilometers if not provided
+        except ValueError:
+            return Response({'error': 'Invalid query parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not distance_obj:
+            distance_obj = None  # set default distance to 1000 kilometers (i.e. very large value)
+
+        try:
+            distance = float(distance_obj)
+        except ValueError:
+            return Response({'error': 'Invalid query parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        target_point = Point(lat_obj, lng_obj)
+
+        if unit == "km":
+            distance = Distance(km=distance_obj)
+        elif unit == "mi":
+            distance = Distance(mi=distance_obj)
+        else:
+            return Response({'error': 'Invalid unit of measurement'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Search for events within the given distance
+        if distance_obj:
+            upcoming_events = self.filter_queryset(self.get_queryset()).filter(
+                Q(events__point__distance_lte=(target_point, distance)) |
+                Q(seminarnformation__point__distance_lte=(target_point, distance)) |
+                Q(schoolgym__point__distance_lte=(target_point, distance))
+            ).filter(
+                (Q(events__start_date__gt=dt.datetime.today()) & Q(events__is_approved=True)) |
+                (Q(seminarnformation__start_date__gt=dt.datetime.today()) & Q(seminarnformation__is_approved=True)) |
+                (Q(schoolgym__created_at__lte=dt.datetime.today()) & Q(schoolgym__is_approved=True))
+            )
+        if not upcoming_events or not distance_obj:
+            target_point = Point(lat_obj, lng_obj,srid=4326)
+            upcoming_events = self.filter_queryset(self.get_queryset()).annotate(distance=GeometryDistance("events__point", target_point)).order_by("distance")[:5]
+        serializer = upcomingEvents_detailsSerializers(upcoming_events, many=True, context={'request':request})
+        return Response(serializer.data)
+
 
 
 
 class UpcomingEventsView(viewsets.ModelViewSet):
     serializer_class = upcomingEvents_detailsSerializers
     queryset = all_events_details.objects.all().order_by('-id') 
-    filter_backends = [SearchFilter]
-    search_fields = ['events__title','seminarnformation__title','schoolgym__title']
+    filter_backends = [SearchFilter,OrderingFilter,DjangoFilterBackend]
+    distance_filter_field = 'events__point'
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
+    filterset_fields = ['type']
+    search_fields = ['events__title','events__address','events__country','seminarnformation__title','seminarnformation__country','seminarnformation__address','schoolgym__title','schoolgym__address','schoolgym__country','events__martial_art_style','seminarnformation__martial_art_style','schoolgym__martial_art_style','events__tags__tag_name','seminarnformation__tags__tag_name','schoolgym__tags__tag_name']
+
+    def get_queryset(self):
+        today = dt.datetime.today()
+        queryset = all_events_details.objects.select_related('events', 'seminarnformation', 'schoolgym').filter(
+            Q(events__end_date__gte=today, events__is_approved=True) |
+            Q(seminarnformation__end_date__gte=today, seminarnformation__is_approved=True)
+        )
+        return queryset
+
     
-  
-    def list(self, request, format=None):
-        upcoming_events =  self.filter_queryset(self.get_queryset()).filter(Q (events__end_date__gte=dt.datetime.today())& Q (events__is_approved = True)|Q (seminarnformation__end_date__gte=dt.datetime.today())& Q (seminarnformation__is_approved = True)|Q(schoolgym__created_at__lte=dt.datetime.today())& Q (schoolgym__is_approved = True))
-        serializer = upcomingEvents_detailsSerializers(upcoming_events, many=True,context={'request':request})
-        return Response(serializer.data) 
+    def list(self, request, format=None):   
+        
+        lat_obj = float(request.GET.get("lat",None)) 
+        lng_obj = float(request.GET.get("lng",None)) 
+        distance_obj = request.GET.get("distance",None)
+        unit = request.GET.get("distance_type",None)  
+        Judo = request.GET.get('Judo', None)
+        online_only = request.GET.get('online_only', None)
+        q_Judo = Q()
+        if Judo:
+            q_Judo = Q(Q(Q(events__martial_art_style=Judo) | Q(seminarnformation__martial_art_style=Judo)| Q(schoolgym__martial_art_style=Judo)))
+        q_online_only = Q()
+        if online_only:
+            q_online_only = Q(Q(Q(events__online_only=online_only)  | Q (seminarnformation__online_only=online_only) | Q (seminarnformation__online_only=online_only) | Q (seminarnformation__online_only=online_only) ))
+        if unit == "km":
+            if distance_obj:
+                distance = Distance(km=(distance_obj))
+            else:
+                distance= None
+        elif unit == "mi":
+            if distance_obj:
+                distance = Distance(mi=(distance_obj))
+            else:
+                distance=None
+        else:
+            return Response({'error': 'Invalid unit of measurement'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if lat_obj and  lng_obj:
+            target_point = Point(lat_obj, lng_obj)
+            upcoming_events = self.filter_queryset(self.get_queryset()).filter(
+            Q(events__point__distance_lte=(target_point, distance)) |
+            Q(seminarnformation__point__distance_lte=(target_point, distance)) |
+            Q(schoolgym__point__distance_lte=(target_point, distance))
+            )
+            if not upcoming_events:
+                target_point = Point(lat_obj, lng_obj,srid=4326)
+                upcoming_events = self.filter_queryset(self.get_queryset()).annotate(distance=GeometryDistance("events__point", target_point)).order_by("distance")[:5]
+        else:
+            target_point = Point(lat_obj, lng_obj)
+            upcoming_events = self.filter_queryset(self.get_queryset()).filter(
+                Q(events__point__distance_lte=(target_point, distance)) |
+                Q(seminarnformation__point__distance_lte=(target_point, distance)) |
+                Q(schoolgym__point__distance_lte=(target_point, distance))
+            ).filter(
+                (Q(events__start_date__gt=dt.datetime.today()) & Q(events__is_approved=True)) |
+                (Q(seminarnformation__start_date__gt=dt.datetime.today()) & Q(seminarnformation__is_approved=True)) |
+                (Q(schoolgym__created_at__lte=dt.datetime.today()) & Q(schoolgym__is_approved=True))
+            )
+        serializer = upcomingEvents_detailsSerializers(upcoming_events, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
 
@@ -970,138 +1216,276 @@ class UpcomingEventsView(viewsets.ModelViewSet):
 class PastEventsView(viewsets.ModelViewSet):
     serializer_class = upcomingEvents_detailsSerializers
     queryset = all_events_details.objects.all().order_by('-id') 
-    filter_backends = [SearchFilter]
-    search_fields = ['events__title','seminarnformation__title','schoolgym__title']
+    filter_backends = [SearchFilter,OrderingFilter,DjangoFilterBackend]
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
+    filterset_fields = ['type']
+    # filterset_fields = ['events__online_only','seminarnformation__online_only']
+    search_fields = ['events__title','seminarnformation__title','schoolgym__title','events__martial_art_style','seminarnformation__martial_art_style','schoolgym__martial_art_style','events__tags__tag_name','seminarnformation__tags__tag_name','schoolgym__tags__tag_name']
 
+    def get_queryset(self):
+        today = dt.datetime.today()
+        queryset = all_events_details.objects.filter(
+            Q(events__end_date__lte=today) & Q(events__is_approved=True) |
+            Q(seminarnformation__end_date__lte=today) & Q(seminarnformation__is_approved=True)
+        )
+        return queryset
 
     def list(self, request, format=None):
-        past_events = self.filter_queryset(self.get_queryset()).filter(Q (events__start_date__lte=dt.datetime.today())& Q (events__is_approved = True)|Q (seminarnformation__start_date__lte=dt.datetime.today())& Q (seminarnformation__is_approved = True))
-        serializer = upcomingEvents_detailsSerializers(past_events, many=True,context={'request':request})
-        return Response(serializer.data)
+        lat_obj = float(request.GET.get("lat", None))
+        lng_obj = float(request.GET.get("lng", None))
+        distance_obj = request.GET.get("distance", None)
+        unit = request.GET.get("distance_type", None)
+        Judo = request.GET.get('Judo', None)
+        online_only = request.GET.get('online_only', None)
+        q_Judo = Q()
+        if Judo:
+            q_Judo = Q(
+                Q(Q(events__martial_art_style=Judo) |
+                  Q(seminarnformation__martial_art_style=Judo) |
+                  Q(schoolgym__martial_art_style=Judo)))
+        q_online_only = Q()
+        if online_only:
+            q_online_only = Q(
+                Q(Q(events__online_only=online_only) |
+                  Q(seminarnformation__online_only=online_only) |
+                  Q(schoolgym__online_only=online_only)))
+
+        if unit == "km":
+            if distance_obj:
+                distance = D(km=(distance_obj))
+            else:
+                distance = None
+        elif unit == "mi":
+            if distance_obj:
+                distance = D(mi=(distance_obj))
+            else:
+                distance = None
+        else:
+            return Response({'error': 'Invalid unit of measurement'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if lat_obj and lng_obj:
+            target_point = Point(lng_obj, lat_obj, srid=4326)
+            past_events = self.get_queryset().filter(
+                Q(events__point__distance_lte=(target_point, distance)) |
+                Q(seminarnformation__point__distance_lte=(target_point, distance)) |
+                Q(schoolgym__point__distance_lte=(target_point, distance))
+            )
+            if not past_events:
+                target_point = Point(lng_obj, lat_obj,srid=4326)
+                past_events = self.get_queryset().annotate(
+                    distance=GeometryDistance("events__point", target_point)).order_by("distance")[:5]
+
+        else:
+            target_point = Point(lng_obj, lat_obj,srid=4326)
+            past_events = self.get_queryset().filter(
+                Q(events__point__distance_lte=(target_point, distance)) |
+                Q(seminarnformation__point__distance_lte=(target_point, distance)) |
+                Q(schoolgym__point__distance_lte=(target_point, distance))
+            ).filter(q_Judo).filter(q_online_only)
+
+        serializer = upcomingEvents_detailsSerializers(past_events, many=True, context={'request': request})
+        return Response(data=serializer.data)
 
 
 
-from django.core.files import File
-from urllib.request import urlopen
-class UploadCsvFileView(generics.CreateAPIView):
-    # serializer_class = SchoolGymSerializers
+
+
+class OnGoingEventsView(viewsets.ModelViewSet):
+    serializer_class = upcomingEvents_detailsSerializers
+    queryset = all_events_details.objects.all().order_by('-id') 
+    filter_backends = [SearchFilter,OrderingFilter,DjangoFilterBackend]
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
+    filterset_fields = ['type']
+    # filterset_fields = ['events__online_only','seminarnformation__online_only']
+    search_fields = ['events__title','seminarnformation__title','schoolgym__title','events__martial_art_style','seminarnformation__martial_art_style','schoolgym__martial_art_style']
     
+  
+    def list(self, request, format=None):
+        Judo = request.GET.get('Judo', None)
+        online_only= request.GET.get('online_only', None)
+        
+        q_Judo = Q()
+        if Judo:
+            q_Judo = Q(Q(Q(events__martial_art_style=Judo) | Q(seminarnformation__martial_art_style=Judo)| Q(schoolgym__martial_art_style=Judo)))
+        q_online_only = Q()
+        if online_only:
+            q_online_only = Q(Q(Q(events__online_only=online_only)  | Q (seminarnformation__online_only=online_only) | Q (seminarnformation__online_only=online_only) | Q (seminarnformation__online_only=online_only) ))    
+        upcoming_events =  self.filter_queryset(self.get_queryset()).filter(Q (events__start_date__lte=dt.datetime.today()) & Q (events__end_date__gte=dt.datetime.today()) & Q (events__is_approved = True)|Q (seminarnformation__start_date__lte=dt.datetime.today())& Q (seminarnformation__end_date__gte=dt.datetime.today()) & Q (seminarnformation__is_approved = True)|Q(schoolgym__created_at__lte=dt.datetime.today())& Q (schoolgym__is_approved = True)).filter(q_Judo ).filter(q_online_only)
+        serializer = upcomingEvents_detailsSerializers(upcoming_events, many=True,context={'request':request})
+        return Response(serializer.data) 
+
+
+
+
+
+    
+
+
+
+class UploadCsvFileView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
-        serializer = EventsSerializers
-        serializer1 = SeminarSerializers
-        serializer2 = SchoolGymSerializers
-        image_url = 'http://122.160.74.251:3004/image%205.png'
-        # serializer = self.get_serializer(data=request.data)
-        # serializer.is_valid(raise_exception=True)
         file = request.FILES['file']
+        file_extension = file.name.split('.')[-1]
         type1 =  request.data.getlist('type')
-        user_obj =  request.data.getlist('user')
-        print("---=-=-=-=",user_obj)
-        reader = pd.read_csv(file)
+        user =  request.data.get('user')
+        try:
+            user_data = User.objects.get(id=user)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=400)
+        if file_extension == 'csv':
+            reader = pd.read_csv(file)
+        elif file_extension in ['xlsx', 'xls']:
+            reader = pd.read_excel(file)
+        else:
+            return Response({'error': 'Invalid file type'}, status=400)
+        
+        reader.fillna('', inplace=True) # Replace NaN with empty strings
         for _, row in reader.iterrows():
-            if 'Events' in type1:
-                new_file = serializer(data=
-                    {"address": row['address'],
-                     "zip_code": row['zip_code'], 
-                     "country": row['country'],                              
-                     "organizer_first_name": row['organizer_first_name'],
-                     "organizer_last_name": row['organizer_last_name'],
-                     "organizer_phone_number": row['organizer_phone_number'], 
-                     "organizer_email": row['organizer_email'],                  
-                     "organizer_social_media_links": row['organizer_social_media_links'],                 
-                     "does_this_event_accept_foreign_participants": row['does_this_event_accept_foreign_participants'],      
-                     "instructions_for_the_event": row['instructions_for_the_event'],  
-                     "related_associations_or_organizations": row ['related_associations_or_organizations'],                                
-                     "title": row['title'],
-                     "time": row['time'],                
-                    #  "image": row['image'],
-                     "description": row['description'], 
-                     "start_date": row["start_date"],
-                     "end_date" : row['end_date'], 
-                     "status": row["status"],                                     
-                     "organizer_social_media_links": row['organizer_social_media_links'],
-                     "created_at": row['created_at'], 
-                     "updated_at": row['updated_at'],   
-                     "is_approved": row['is_approved'], 
-                     "modified": row['modified'],                                                        
-                                     
-                    }) 
-                if new_file.is_valid():         
-                    events_obj = new_file.save()
-                    save_image_from_url(events_obj,image_url)
-                    data =all_events_details.objects.create(user_id=1,events=events_obj,type=type1)
-                    data.save() 
+            try:
+                if 'Events' in type1:
+                    if file_extension == 'csv':
+                        serializer = EventsSerializers(data=row.to_dict())
+                        if serializer.is_valid():
+                            data_save = serializer.save()
+                            data = all_events_details.objects.create(user_id=user, events=data_save, type=type1)
+                            data.save()
+                        else:
+                            return Response(serializer.errors, status=400)
+                    else:
+                        try:
+                            start_date = pd.to_datetime(row[9], format='%Y-%m-%d %H:%M:%S', utc=True).tz_convert(pytz.UTC)
+                            if pd.isna(start_date):
+                                start_date = None
+                            end_date = pd.to_datetime(row[10], format='%Y-%m-%d %H:%M:%S', utc=True).tz_convert(pytz.UTC)
+                            if pd.isna(end_date):
+                                end_date = None
+                        except ValueError as e:
+                            print(f"Error processing row {row}: {e}")
+                        try:
+                            if user_data.role == 0:  # check if the user is admin based on role
+                                is_approved = True
+                            else:
+                                is_approved = False    
+                            image_url = row[0]
+                            if not image_url.strip():  # check if image_url is empty
+                                image_file = None
+                            else:
+                                image_url_encoded = urllib.parse.quote(image_url, safe=':/')
+                                result = urllib.request.urlretrieve(image_url_encoded)
+                                image_file = File(open(result[0], 'rb'))
+                            new_obj = Events.objects.create(image=image_url,website=row[1],online_registration_link=row[2],event_flyer_material=row[3],event_link=row[4],title=row[5],address=row[6],zip_code=row[7],country=row[8],start_date=start_date,end_date=end_date,time=row[11],contact_first_name=row[12],contact_last_name=row[13],contact_title=row[14],contact_phone_number=row[15],contact_email=row[16],contact_social_media_links=row[17],does_this_event_accept_foreign_participants=row[18],instructions_for_the_event=row[19],related_associations_or_organizations=row[20],online_only=row[21],is_more_information_coming_soon=row[22],comments_by_data_entry_associate=row[23],martial_art_style=row[24],is_approved=is_approved)
+                            if image_url:
+                                new_obj.image.save(
+                                    os.path.basename(image_url),
+                                    image_file,
+                                )
+                            new_obj.save()
+                            data = all_events_details.objects.create(user_id=user, events=new_obj, type=type1[0])
+                            data.save()
+                        except urllib.error.URLError as e:
+                            print(f"Error retrieving image from URL {image_url}: {e}")
+                        except Exception as e:
+                            print(f"Error creating Events object for row {row}: {e}")
+
+
+
+                elif 'SeminarInformation' in type1:
+                    if file_extension == 'csv':
+                        serializer = SeminarSerializers(data=row.to_dict())
+                        if serializer.is_valid():
+                            sem_data = serializer.save()
+                            data = all_events_details.objects.create(user_id=user, events=sem_data, type=type1)
+                            data.save()
+                        else:
+                           return Response(serializer.errors, status=400)
+                    else:
+                        try:
+                            start_date = pd.to_datetime(row[9], format='%Y-%m-%d %H:%M:%S', utc=True).tz_convert(pytz.UTC)
+                            if pd.isna(start_date):
+                                start_date = None
+                            end_date = pd.to_datetime(row[10], format='%Y-%m-%d %H:%M:%S', utc=True).tz_convert(pytz.UTC)
+                            if pd.isna(end_date):
+                                end_date = None
+                        except ValueError as e:
+                            print(f"Error processing row {row}: {e}")
+                        try:
+                            if user_data.role == 0:  # check if the user is admin based on role
+                                is_approved = True
+                            else:
+                                is_approved = False    
+                            image_url = row[0]
+                            if not image_url.strip():  # check if image_url is empty
+                                image_file = None
+                            else:
+                                image_url_encoded = urllib.parse.quote(image_url, safe=':/')
+                                result = urllib.request.urlretrieve(image_url_encoded)
+                                image_file = File(open(result[0], 'rb'))
+                            new_obj = SeminarInformation.objects.create(image=image_url,website=row[1],online_registration_link=row[2],event_flyer_material=row[3],event_link=row[4],title=row[5],address=row[6],zip_code=row[7],country=row[8],start_date=start_date,end_date=end_date,details=row[11],first_name=row[12],last_name=row[13],comments_by_data_entry_associate=row[14],phone_number=row[15],organizer_email=row[16],social_media_links=row[17],does_this_event_accept_foreign_participants=row[18],special_instructions=row[19],why_is_this_seminar_only_open_to_this_group_of_people=row[20],online_only=row[21],is_more_information_coming_soon=row[22],is_approved=is_approved)
+                            if image_url:
+                                new_obj.image.save(
+                                    os.path.basename(image_url),
+                                    image_file,
+                                )
+                            new_obj.save()
+                            data = all_events_details.objects.create(user_id=user, seminarnformation=new_obj, type=type1[0])
+                            data.save()    
+                        except ValueError as e:
+                            print(f"Error processing row {row}: {e}")                                    
+                                                                            
+
+                elif 'SchoolGym' in type1:
+                    if file_extension == 'csv':
+                        serializer = SchoolGymSerializers(data=row.to_dict())
+                        if serializer.is_valid():
+                            school_data = serializer.save()
+                            data = all_events_details.objects.create(user_id=user, events=school_data, type=type1)
+                            data.save()
+                        else:
+                           return Response(serializer.errors, status=400)
+                    else:
+                        try:
+                            start_date = pd.to_datetime(row[9], format='%Y-%m-%d %H:%M:%S', utc=True).tz_convert(pytz.UTC)
+                            if pd.isna(start_date):
+                                start_date = None
+                            end_date = pd.to_datetime(row[10], format='%Y-%m-%d %H:%M:%S', utc=True).tz_convert(pytz.UTC)
+                            if pd.isna(end_date):
+                                end_date = None
+                        except ValueError as e:
+                            print(f"Error processing row {row}: {e}")
+                        try:
+                            if user_data.role == 0:  # check if the user is admin based on role
+                                is_approved = True
+                            else:
+                                is_approved = False    
+                            image_url = row[0]
+                            if not image_url.strip():  # check if image_url is empty
+                                image_file = None
+                            else:
+                                image_url_encoded = urllib.parse.quote(image_url, safe=':/')
+                                result = urllib.request.urlretrieve(image_url_encoded)
+                                image_file = File(open(result[0], 'rb'))
+                            new_obj = SchoolGym.objects.create(image=image_url,website=row[1],online_registration_link=row[2],event_flyer_material=row[3],event_link=row[4],title=row[5],address=row[6],zip_code=row[7],country=row[8],start_date=start_date,end_date=end_date,time=row[11],contact_first_name=row[12],contact_last_name=row[13],contact_title=row[14],contact_phone_number=row[15],contact_email=row[16],contact_social_media_links=row[17],does_this_event_accept_foreign_participants=row[18],instructions_for_the_event=row[19],related_associations_or_organizations=row[20],online_only=row[21],is_more_information_coming_soon=row[22],comments_by_data_entry_associate=row[23],is_approved=is_approved)
+                            if image_url:
+                                new_obj.image.save(
+                                    os.path.basename(image_url),
+                                    image_file,
+                                )
+                            new_obj.save()
+                            data = all_events_details.objects.create(user_id=user, schoolgym=new_obj, type=type1[0])
+                            data.save()       
+                        except ValueError as e:
+                            print(f"Error processing row {row}: {e}") 
+                    
                 else:
-                    return Response(new_file.errors, status=400) 
-               
-            if 'SeminarInformation' in type1:
-                new_file = serializer1(data=
-                    {"address": row['address'],
-                     "zip_code": row['zip_code'], 
-                     "country": row['country'],                              
-                     "organizer_first_name": row['organizer_first_name'],
-                     "organizer_last_name": row['organizer_last_name'],
-                     "organizer_phone_number": row['organizer_phone_number'], 
-                     "organizer_email": row['organizer_email'],   
-                     "organizer_social_media_links": row['organizer_social_media_links'], 
-                     "does_this_event_accept_foreign_participants": row['does_this_event_accept_foreign_participants'],  
-                     "why_is_this_seminar_only_open_to_this_group_of_people": row['why_is_this_seminar_only_open_to_this_group_of_people'],  
-                     "cost_of_seminar": row['cost_of_seminar'],  
-                     "title": row['title'],   
-                    #  "image": row['image'],
-                     "special_instructions": row['special_instructions'], 
-                     "details": row['details'],
-                     "start_date": row["start_date"],
-                     "end_date" : row['end_date'],                   
-                     "created_at": row['created_at'], 
-                     "updated_at": row['updated_at'],   
-                     "is_approved": row['is_approved'],                                      
-                                                        
-                     })
-                if new_file.is_valid():         
-                    seminar_data = new_file.save()
-                    save_image_from_url(seminar_data,image_url)
-                    data =all_events_details.objects.create(user_id=1,seminarnformation=seminar_data,type=type1)
-                    data.save()
-                    # return Response({"status":"Data saved successfully"} ,status=status.HTTP_201_CREATED)  
-                else:
-                    return Response(new_file.errors, status=400)
+                    return Response({'error': 'Invalid event type'}, status=400)
 
-            if 'SchoolGym' in type1:
-                new_file = serializer2(data=
-                    {"address": row['address'],
-                     "zip_code": row['zip_code'], 
-                     "country": row['country'],                              
-                     "owner_first_name": row['owner_first_name'],
-                     "owner_last_name": row['owner_last_name'],
-                     "owner_phone_number": row['owner_phone_number'], 
-                     "owner_email": row['owner_email'],   
-                     "price_min_ranges": row['price_min_ranges'], 
-                     "price_max_ranges": row['price_max_ranges'],  
-                     "days_of_operation": row['days_of_operation'],  
-                     "hours_of_operation": row['hours_of_operation'],  
-                     "title": row['title'],   
-                    #  "image": row['image'],
-                     "special_instructions": row['special_instructions'], 
-                     "introduction": row['introduction'],   
-                     "owner_social_media_links": row['owner_social_media_links'],
-                     "created_at": row['created_at'], 
-                     "updated_at": row['updated_at'],   
-                     "is_approved": row['is_approved'],                                      
-                                                        
-                     })
-                if new_file.is_valid():      
-                    new_data=new_file.save()
-                    save_image_from_url(new_data,image_url)
-                    data =all_events_details.objects.create(user_id=1,schoolgym=new_data,type=type1)
-                    data.save() 
-                else:
-                    return Response(new_file.errors, status=400)
+            except Exception as e:
+                error_message = f"Error creating Events object for row {row}: {e}"
+                return Response({'error': error_message}, status=400)
 
-        return Response({"status":"Data saved successfully"} ,status=status.HTTP_201_CREATED)  
-
-        # return Response({"status": ""},status.HTTP_201_CREATED)
-
+        return Response({'success': 'File uploaded successfully'})
 
 
 
@@ -1113,5 +1497,103 @@ def save_image_from_url(model, url):
     img_temp = NamedTemporaryFile(delete=True)
     img_temp.write(r.content)
     img_temp.flush()
-
     model.image.save("image.jpg", File(img_temp), save=True)
+
+
+
+class PageImageView(viewsets.ModelViewSet):
+    serializer_class = PageImageSerializers
+    queryset = PagesImage.objects.all()
+
+
+    
+
+class UserDetailView(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializers
+    
+
+    
+    
+
+@api_view(['post'])
+def generate_haiku(request, word):
+    adjectives = ['bright', 'dazzling', 'shining', 'vivid', 'gleaming', 'religious', 'popular', 'traditional', 'cultural', 'available', 'international', 'economic', 'American', 'national', 'different', 'early', 'environmental', 'religious', 'cultural', 'traditional', 'adventurous', 'condescending', 'cooperative', 'courageous', 'despicable', 'determined', 'dilapidated', 'diminutive', 'distressed', 'disturbed']
+    nouns = ['sun', 'star', 'moon', 'sky', 'cloud', 'area', 'book', 'business', 'case', 'company', 'family', 'government', 'group', 'home', 'money', 'mother', 'number', 'people', 'place', 'problem', 'program', 'question', 'right', 'room', 'school', 'story', 'student', 'study', 'system', 'thing', 'time', 'water', 'way', 'woman', 'word', 'work', 'world', 'year']
+
+    # Generate the poem using the input word and randomly selected words
+    first_line = f"The {word} is a {random.choice(adjectives)} {random.choice(nouns)}.\n"
+    second_line = f"{random.choice(['Brightens', 'Illuminates', 'Shines on', 'Lights up', 'Casts a glow on'])} our lives {random.choice(['like', 'as'])} a {random.choice(adjectives)} {word}.\n"
+    third_line = f"{random.choice(['Softly rustling in the wind,', 'Natures symphony,', 'The moons silver light,', 'Reflecting on the still lake,', 'Peaceful and quiet,', 'Cherry blossoms bloom,', 'Fleeting beauty of springtime,', 'Ephemeral life,'])}\n"
+    
+    haiku = f"{first_line}{second_line}{third_line}"
+    haiku_lines = haiku.strip().split("\n")
+    if len(haiku_lines) != 3:
+        # If the haiku doesn't have three lines, return an error
+        return Response({"error": "Failed to generate haiku. Please try again."})
+    else:
+        discussion_type = request.data['discussion_type']
+        if discussion_type == 'Poem':
+            # If discussion_type is poem, only save poem and user_id
+            poem = f"{haiku_lines[0]}\n{haiku_lines[1]}\n{haiku_lines[2]}"
+            # Post.objects.create(word=poem, user_id=request.user.id, discussion_type=discussion_type)
+            return Response({"poem":poem,"save":True})
+        elif discussion_type == 'Both':
+            # If discussion_type is both, save all fields including title and thoughts
+            title = request.data.get('title')
+            thought = request.data.get('thought')
+            poem = f"{haiku_lines[0]}\n{haiku_lines[1]}\n{haiku_lines[2]}"
+            # Post.objects.create(word=poem, user_id=request.user.id, discussion_type=discussion_type, title=title, thought=thought)
+            return Response({"poem":poem, "title":title, "thought":thought})
+        else:
+            # If discussion_type is invalid, return an error
+            return Response({"error": "Invalid discussion_type. Please select either" 'poem'})
+
+
+
+
+
+        
+
+class TagViewSet(viewsets.ModelViewSet):
+    serializer_class = TagSerializers
+    queryset = Tag.objects.all()   
+    filter_backends = [SearchFilter,OrderingFilter,DjangoFilterBackend]
+    filterset_fields = ['tag_name']      
+
+
+
+
+class UserbackgroundView(viewsets.ModelViewSet):
+    queryset = Userbackgroundimage.objects.all()
+    serializer_class = UserbackgroundSerializers
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        user_background, created = Userbackgroundimage.objects.get_or_create(user=user)
+
+        serializer = self.get_serializer(user_background, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

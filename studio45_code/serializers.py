@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from .models import User,Add_Blog,Contact,Events,UserContact,SeminarInformation,SchoolGym,all_events_details,Pages
+from .models import User,Add_Blog,Contact,Events,UserContact,SeminarInformation,SchoolGym,all_events_details,Pages,PagesImage,Tag,Userbackgroundimage,Personal
 from django.contrib.auth import get_user_model
-from datetime import datetime
-import io
+from geopy.distance import geodesic
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -25,20 +25,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
        
              
 
-    # def validate(self, data):
-    #     mobile_number = data.get('mobile_number')
-    #     email = data.get('email')
-    #     # if User.objects.filter(email__iexact=email).exists():
-    #     #     raise serializers.ValidationError("User Name and email must be unique")
-    #     # if User.objects.filter(email__iexact=email).exists():
-    #     #     raise serializers.ValidationError("Email already exist")
-    #     # if User.objects.filter(mobile_number__iexact=mobile_number).exists():
-    #     #     raise serializers.ValidationError("Mobile Number already exist") 
-    #     if not mobile_number.isnumeric(): 
-    #         raise serializers.ValidationError("Mobile number must be entered in Number ") 
-    #     if len(mobile_number) < 10 or len(mobile_number) > 13:
-    #         raise serializers.ValidationError("Mobile numbe is not valid")
-    #     return data
+ 
 
 class LoginSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
@@ -77,12 +64,40 @@ class ResetPasswordSerializer(serializers.Serializer):
 
    
 
+
+
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    return str(refresh.access_token)
+
+   
+
+
+
 class UpdateUserProfileSerializer(serializers.ModelSerializer):
+
+    token = serializers.SerializerMethodField()
+
+    def get_token(self, obj):
+        user = obj
+        token = get_tokens_for_user(user)
+        return token
 
     class Meta:
         model = get_user_model()
         model = User
-        fields = ['first_name','last_name','profile_image_update','mobile_number','username','gender','age','weight','martial_art_style','competition_level','zip_code','country','about_me','email']    
+        fields = '__all__'
+        # fields = ['Social_media_links','first_name','last_name','profile_image_update','mobile_number','username','gender','age','weight','competition_level','zip_code','country','about_me','email','created_at','token']    
+    
+
+    profile_image_update = serializers.ImageField(required=False)
+
+
+
+
+
+
+
 
 
 
@@ -103,7 +118,7 @@ class contactSerializer(serializers.ModelSerializer):
         if not phone.isnumeric(): 
             raise serializers.ValidationError("Phone number must be entered in Number ") 
         if len(phone) < 10 or len(phone) > 13:
-            raise serializers.ValidationError("Phone numbe is not valid")
+            raise serializers.ValidationError("Phone number is not valid")
         return data
              
 class UserList(serializers.ModelSerializer):
@@ -159,7 +174,7 @@ class SchoolGymSerializers(serializers.ModelSerializer):
         
            
 
-   
+
 
 
 
@@ -167,6 +182,7 @@ class PagesSerializers(serializers.ModelSerializer):
     class Meta:
         model = Pages
         fields = '__all__'          
+
 
 
 class UserSerializers(serializers.ModelSerializer):
@@ -184,14 +200,38 @@ class SeminarSerializers(serializers.ModelSerializer):
 
 
 
+class PersonalSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Personal
+        fields = '__all__'
+
+
+
 class all_events_detailsSerializers(serializers.ModelSerializer):
     events =EventsSerializers(required=False)
     seminarnformation = SeminarSerializers(required=False)
     schoolgym = SchoolGymSerializers(required=False)
+    personal = PersonalSerializer(required=False)
      
     class Meta:
         model = all_events_details
         fields = '__all__'    
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
 
 
 class Get_details_detailsSerializers(serializers.ModelSerializer):
@@ -220,13 +260,139 @@ class upcomingEvents_detailsSerializers(serializers.ModelSerializer):
         
 
 
-class csvData_detailsSerializers(serializers.ModelSerializer):
-    events =EventsSerializers(required=False)
+
+
+class PageImageSerializers(serializers.ModelSerializer):
+ 
+    class Meta:
+        model = PagesImage
+        fields = '__all__'  
+   
+    
+
+
+ 
+
+    
+
+class SchoolSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolGym
+        fields = ['id','latitude','longitude','country','address','title','image']   
+        
+class SemSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = SeminarInformation
+        fields = ['id','latitude','longitude','country','address','title','image']   
+                
+
+class evSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Events
+        fields = ['id','latitude','longitude','country','address','title','image']   
+                                
+
+
+
+class newformdetails_detailsSerializers(serializers.ModelSerializer):
+    events =evSerializers(required=False)
+    seminarnformation = SemSerializers(required=False)
+    schoolgym = SchoolSerializers(required=False)
+     
+    class Meta:
+        model = all_events_details
+        fields = '__all__'                                  
+
+
+
+class followerPostSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = '__all__'
+
+
+
+
+
+
+class PostUserDataSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = '__all__'        
+
+
+
+
+class TagSerializers(serializers.ModelSerializer):
+ 
+    class Meta:
+        model = Tag
+        fields = '__all__'  
+
+
+class UserPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = '__all__'
+
+
+
+
+
+class UserbackgroundSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Userbackgroundimage
+        fields = '__all__' 
+
+
+
+class distanceEventsSerializers(serializers.ModelSerializer):
+    time = serializers.CharField()
+    distance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Events
+        fields = ['id','address', 'zip_code', 'contact_title', 'event_link', 'comments_by_data_entry_associate', 'is_more_information_coming_soon', 'event_flyer_material', 'online_registration_link', 'country', 'latitude', 'longitude', 'time', 'contact_first_name', 'contact_last_name', 'contact_phone_number', 'contact_email', 'contact_social_media_links', 'does_this_event_accept_foreign_participants', 'instructions_for_the_event', 'related_associations_or_organizations', 'title', 'image', 'city', 'start_date', 'end_date', 'status', 'modified', 'created_at', 'updated_at', 'is_approved', 'online_only', 'martial_art_style', 'website', 'tags', 'point', 'event_participants', 'distance']
+
+
+
+    def get_distance(self, obj):
+        current_location = (self.context['lat'], self.context['lng'])
+        event_location = (obj.latitude, obj.longitude)
+        distance_km = geodesic(current_location, event_location).kilometers
+        distance_miles = distance_km * 0.621371  # Convert kilometers to miles
+        return distance_miles
+
+
+
+
+
+
+class distanceSchoolGymSerializers(serializers.ModelSerializer):
+    distance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SchoolGym
+        fields = ['id','title', 'address', 'latitude', 'longitude', 'zip_code', 'country', 'owner_first_name', 'owner_last_name', 'owner_phone_number', 'owner_email', 'price_min_ranges', 'price_max_ranges', 'days_of_operation', 'hours_of_operation', 'introduction', 'owner_social_media_links', 'special_instructions', 'is_approved', 'created_at', 'updated_at', 'image', 'martial_art_style', 'website', 'modified', 'tags', 'city', 'point']
+
+    def get_distance(self, obj):
+        current_location = (self.context['lat'], self.context['lng'])
+        event_location = (obj.latitude, obj.longitude)
+        distance_km = geodesic(current_location, event_location).kilometers
+        distance_miles = distance_km * 0.621371  # Convert kilometers to miles
+        return distance_miles
+
+
+
+class upcomingDistance_detailsSerializers(serializers.ModelSerializer):
+    events =distanceEventsSerializers(required=False)
+    schoolgym = distanceSchoolGymSerializers(required=False)
     seminarnformation = SeminarSerializers(required=False)
-    schoolgym = SchoolGymSerializers(required=False)
     
     class Meta:
         model = all_events_details
-        fields = '__all__'           
+        fields = '__all__'         
 
-
+    def get_image(self,object):
+        if object.image is not None:
+            return object.image.url

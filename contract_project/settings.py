@@ -16,7 +16,7 @@ SECRET_KEY = 'django-insecure-3&oee#u7@$4m9kwrt=76p3xvyo#-t9s&so^=cy5)h=xtg@%!a6
 DEBUG = True
 
 
-ALLOWED_HOSTS = ['*','204.236.251.24']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -28,11 +28,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'contract_app',
+    # 'contract_app',
     'rest_framework',
     'corsheaders',
     'django_filters',
     'studio45_code',
+    'django.contrib.gis',
+    'instagram',
+    'discussion'
+    # 'rest_framework_gis',
+    # 'rest_framework_gis',
 
 ]
 
@@ -72,12 +77,35 @@ WSGI_APPLICATION = 'contract_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#         'NAME': 'fight_finder', 
+#         'USER': 'aman',
+#         'PASSWORD': 'studio45#',
+#         'HOST': '43.205.65.56', 
+#         'PORT': '5432',
+#     }
+# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'postgres', 
+        'USER': 'postgres',
+        'PASSWORD': 'studio45#',
+        'HOST': '52.66.176.234', 
+        'PORT': '5432',
     }
 }
+
 
 
 # Password validation
@@ -132,13 +160,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS_ORIGIN_ALLOW_ALL = True
-#CSRF_TRUSTED_ORIGINS = ['http://122.160.74.251:8014']
-CSRF_TRUSTED_ORIGINS = ['http://204.236.251.24:8000']
+CSRF_TRUSTED_ORIGINS = ['http://43.205.65.56:8000']
 
-BACKEND_SITE_URL = 'http://204.236.251.24:8000'
+BACKEND_SITE_URL = 'http://43.205.65.56:8000'
 # FRONTEND_SITE_URL = 'http://localhost:3000'
-# FRONTEND_SITE_URL = 'http://122.160.74.251:3004'
-FRONTEND_SITE_URL = 'http://54.205.206.219:3000'
+FRONTEND_SITE_URL = 'http://122.160.74.251:3004'
+# FRONTEND_SITE_URL = 'http://13.48.23.65:3000'
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -153,24 +180,37 @@ REST_FRAMEWORK = {
 CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOWED_ORIGINS = [
-    # 'http://localhost:3000',
-    # 'http://122.160.74.251:3003',
-    # 'http://192.168.1.245:3003',
-    # 'http://122.160.74.251:2003',
-    # 'http://192.168.1.245:2003',
-    # 'http://localhost:3003',
-    # 'http://localhost:2002',
-    # 'http://122.160.74.251:3004',
-    'http://54.205.206.219:3000'
+    'http://localhost:3000',
+    'http://122.160.74.251:3003',
+    'http://192.168.1.245:3003',
+    'http://122.160.74.251:2003',
+    'http://192.168.1.245:2003',
+    'http://localhost:3003',
+    'http://localhost:2002',
+    'http://122.160.74.251:3004',
+    'http://13.48.23.65:3000'
 ]
 
 
 AUTH_USER_MODEL = 'studio45_code.User'
+# SEND_GRID_API_key = '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'
+# SEND_GRID_FROM_EMAIL = "pythondev713@gmail.com"
+
+
+# GDAL_LIBRARY_PATH = '/lib/libgdal.so'
+
+
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST_USER = 'pythondev713@gmail.com'
+# EMAIL_HOST_PASSWORD = 'FQsUn6VdZwWf0zEr'
+# EMAIL_HOST = 'smtp-relay.sendinblue.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST_USER = 'pythondev713@gmail.com'
-EMAIL_HOST_PASSWORD = 'FQsUn6VdZwWf0zEr'
+EMAIL_HOST_USER = 'davinder.studio45@gmail.com'
+EMAIL_HOST_PASSWORD = 'qY0cpSERWJGHU8TX'
 EMAIL_HOST = 'smtp-relay.sendinblue.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
