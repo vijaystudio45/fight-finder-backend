@@ -58,7 +58,7 @@ from rest_framework.parsers import FileUploadParser
 import requests
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-
+#test
 class RegistrationView(APIView):
     serializer_class = RegistrationSerializer
 
